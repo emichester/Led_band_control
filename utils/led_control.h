@@ -10,7 +10,13 @@ struct RGBColor {
   uint8_t b;
 };
 
+enum LedMode {
+  MODE_STATIC,
+  MODE_ROTATE
+};
+ 
 static RGBColor currentColor = {0, 0, 0};
+static LedMode currentMode = MODE_STATIC;
 
 inline void ledControlInit() {
   pinMode(PIN_R, OUTPUT);
@@ -37,40 +43,58 @@ inline void ledOff() {
   ledSetColor(0, 0, 0);
 }
 
-// ---------------------------------------------------------------- //
-//   The following code could be used for a rotating color effect   //
-// ---------------------------------------------------------------- //
 
-// r, g, b de 0.0 a 1.0
-void setColor(float r, float g, float b) {
-  analogWrite(PIN_R, (int)(r * PWM_MAX));
-  analogWrite(PIN_G, (int)(g * PWM_MAX));
-  analogWrite(PIN_B, (int)(b * PWM_MAX));
+inline void ledSetMode(LedMode mode) {
+  currentMode = mode;
 }
-
-// Transición suave entre varios colores (efecto "fade")
-void fundidoColores() {
-  static float colores[][3] = {
-    {1, 0, 0},   // rojo
-    {0, 1, 0},   // verde
-    {0, 0, 1},   // azul
-    {1, 1, 0},   // amarillo
-    {0, 1, 1},   // cian
-    {1, 0, 1},   // magenta
-  };
-  static int numColores = 6;
-
-  for (int c = 0; c < numColores; c++) {
-    int siguiente = (c + 1) % numColores;
-    for (int paso = 0; paso <= 100; paso++) {
-      float t = paso / 100.0;
-      float r = colores[c][0] + (colores[siguiente][0] - colores[c][0]) * t;
-      float g = colores[c][1] + (colores[siguiente][1] - colores[c][1]) * t;
-      float b = colores[c][2] + (colores[siguiente][2] - colores[c][2]) * t;
-      setColor(r, g, b);
-      delay(20);
-    }
+ 
+inline LedMode ledGetMode() {
+  return currentMode;
+}
+ 
+// --- Color rotation effect ---
+ 
+// Time between hue steps in ms. Lower = faster rotation.
+#define ROTATE_STEP_MS 30
+ 
+static unsigned long lastRotateStep = 0;
+static uint8_t rotateWheelPos = 0;
+ 
+// Classic 0-255 color wheel (same pattern used in most NeoPixel examples).
+// Walking 'pos' from 0 to 255 sweeps smoothly through the full rainbow.
+inline RGBColor colorWheel(uint8_t pos) {
+  RGBColor c;
+  pos = 255 - pos;
+  if (pos < 85) {
+    c.r = 255 - pos * 3;
+    c.g = 0;
+    c.b = pos * 3;
+  } else if (pos < 170) {
+    pos -= 85;
+    c.r = 0;
+    c.g = pos * 3;
+    c.b = 255 - pos * 3;
+  } else {
+    pos -= 170;
+    c.r = pos * 3;
+    c.g = 255 - pos * 3;
+    c.b = 0;
   }
+  return c;
 }
-
+ 
+// Call every loop() iteration. Advances the rainbow rotation while
+// MODE_ROTATE is active; does nothing otherwise.
+inline void ledEffectsLoop() {
+  if (currentMode != MODE_ROTATE) return;
+ 
+  unsigned long now = millis();
+  if (now - lastRotateStep < ROTATE_STEP_MS) return;
+  lastRotateStep = now;
+ 
+  rotateWheelPos++; // uint8_t wraps 255 -> 0 automatically
+  RGBColor c = colorWheel(rotateWheelPos);
+  ledSetColor(c.r, c.g, c.b);
+}
+ 
 #endif
