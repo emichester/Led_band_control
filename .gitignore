@@ -76,3 +76,6 @@ secrets.h
 
 # Visual Studio Code
 .vscode/
+
+# Drawing files
+drawings/**/*backups/
