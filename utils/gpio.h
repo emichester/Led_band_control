@@ -12,9 +12,9 @@
   // explicitly here so the code is easy to read and to port to other boards)
   #define PWM_MAX 1023
 #else
-  #define PIN_R 9
-  #define PIN_G 10
-  #define PIN_B 11
+  #define PIN_R 17
+  #define PIN_G 18
+  #define PIN_B 19
   #define PWM_MAX 255
 #endif
 
