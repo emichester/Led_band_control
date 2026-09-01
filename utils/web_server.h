@@ -30,23 +30,23 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   <h1>LED Strip Control</h1>
   <input type="color" id="colorPicker" value="#ff0000">
   <br>
-  <button id="rotateBtn">Rotate colors</button>
+  <button id="modeBtn">Smooth</button>
   <p class="status" id="status">Connected</p>
 
 <script>
 const picker = document.getElementById('colorPicker');
-const rotateBtn = document.getElementById('rotateBtn');
+const modeBtn = document.getElementById('modeBtn');
 const status = document.getElementById('status');
 let debounceTimer;
-let rotating = false;
+let modeActive = false;
 
 picker.addEventListener('input', () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(sendColor, 80);
 });
 
-rotateBtn.addEventListener('click', () => {
-  setMode(rotating ? 'static' : 'rotate');
+modeBtn.addEventListener('click', () => {
+  setMode(modeActive ? 'static' : 'smooth');
 });
 
 function sendColor() {
@@ -55,30 +55,29 @@ function sendColor() {
   const g = parseInt(hex.substr(3, 2), 16);
   const b = parseInt(hex.substr(5, 2), 16);
   fetch(`/setColor?r=${r}&g=${g}&b=${b}`)
-    .then(() => { setRotatingUI(false); status.textContent = 'Updated'; })
+    .then(() => { setModeUI(false); status.textContent = 'Updated'; })
     .catch(() => status.textContent = 'Connection error');
 }
 
 function setMode(mode) {
   fetch(`/setMode?mode=${mode}`)
-    .then(() => { setRotatingUI(mode === 'rotate'); status.textContent = 'Updated'; })
+    .then(() => { setModeUI(mode !== 'static'); status.textContent = 'Updated'; })
     .catch(() => status.textContent = 'Connection error');
 }
 
-function setRotatingUI(isRotating) {
-  rotating = isRotating;
-  rotateBtn.textContent = rotating ? 'Stop rotation' : 'Rotate colors';
-  rotateBtn.classList.toggle('active', rotating);
-  picker.disabled = rotating;
+function setModeUI(active) {
+  modeActive = active;
+  modeBtn.textContent = active ? 'Stop' : 'Smooth';
+  modeBtn.classList.toggle('active', active);
+  picker.disabled = active;
 }
 
-// Reflect the board's current state when the page loads
 fetch('/status')
   .then(res => res.json())
   .then(s => {
     const hex = '#' + [s.r, s.g, s.b].map(v => v.toString(16).padStart(2, '0')).join('');
     picker.value = hex;
-    setRotatingUI(s.mode === 'rotate');
+    setModeUI(s.mode !== 'static');
   });
 </script>
 </body>
@@ -95,7 +94,7 @@ inline void handleSetColor() {
     uint8_t g = server.arg("g").toInt();
     uint8_t b = server.arg("b").toInt();
 
-    ledSetMode(MODE_STATIC); // picking a color manually stops any rotation
+    ledSetMode(MODE_STATIC); // picking a color manually stops any running effect
     ledSetColor(r, g, b);
     scheduleColorSave();
 
@@ -112,23 +111,50 @@ inline void handleSetMode() {
   }
 
   String mode = server.arg("mode");
-  if (mode == "rotate") {
-    ledSetMode(MODE_ROTATE);
-  } else if (mode == "static") {
+  if (mode == "static") {
     ledSetMode(MODE_STATIC);
+  } else if (mode == "smooth") {
+    ledSetMode(MODE_SMOOTH);
+  } else if (mode == "fade") {
+    ledSetMode(MODE_FADE);
+  } else if (mode == "flash") {
+    ledSetMode(MODE_FLASH);
+  } else if (mode == "strobe") {
+    ledSetMode(MODE_STROBE);
   } else {
-    server.send(400, "text/plain", "Invalid mode, use 'rotate' or 'static'");
+    server.send(400, "text/plain", "Invalid mode");
     return;
   }
 
   server.send(200, "text/plain", "OK");
 }
 
+inline void handleAdjustBrightness() {
+  if (!server.hasArg("delta")) {
+    server.send(400, "text/plain", "Missing delta parameter");
+    return;
+  }
+  int delta = server.arg("delta").toInt();
+  ledAdjustBrightness(delta);
+  server.send(200, "text/plain", String(ledGetBrightness()));
+}
+
+inline const char* modeToString(LedMode mode) {
+  switch (mode) {
+    case MODE_SMOOTH: return "smooth";
+    case MODE_FADE:   return "fade";
+    case MODE_FLASH:  return "flash";
+    case MODE_STROBE: return "strobe";
+    default:           return "static";
+  }
+}
+
 inline void handleStatus() {
   RGBColor c = ledGetColor();
-  String mode = (ledGetMode() == MODE_ROTATE) ? "rotate" : "static";
   String json = "{\"r\":" + String(c.r) + ",\"g\":" + String(c.g) +
-                ",\"b\":" + String(c.b) + ",\"mode\":\"" + mode + "\"}";
+                ",\"b\":" + String(c.b) +
+                ",\"mode\":\"" + modeToString(ledGetMode()) + "\"" +
+                ",\"brightness\":" + String(ledGetBrightness()) + "}";
   server.send(200, "application/json", json);
 }
 
@@ -136,6 +162,7 @@ inline void webServerInit() {
   server.on("/", handleRoot);
   server.on("/setColor", handleSetColor);
   server.on("/setMode", handleSetMode);
+  server.on("/adjustBrightness", handleAdjustBrightness);
   server.on("/status", handleStatus);
   server.begin();
 }

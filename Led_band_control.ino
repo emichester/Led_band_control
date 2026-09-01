@@ -3,9 +3,9 @@
   -------------------------------------
   Board: D1 mini (ESP8266)
 
-  Connects to WiFi (with auto-reconnect), starts a web server to control
-  the strip color remotely, restores the last saved color on boot, and
-  supports a continuous color-rotation mode.
+  Runs as its own WiFi access point (no router needed). The Android app
+  connects directly to it to control the strip. Restores the last saved
+  color on boot and supports a continuous color-rotation mode.
 
   Wiring:
     D1 -> 1k resistor -> base of S8050 (R channel) -> collector -> strip R
@@ -15,7 +15,8 @@
     GND: supply, board and all 3 transistor emitters tied together
 
   Before uploading:
-    Edit utils/secrets.h with your WiFi SSID and password.
+    Edit utils/secrets.h with the AP name/password you want.
+    Make sure the Android app's AP_SSID/AP_PASSWORD constants match.
 */
 
 #include "utils/network.h"
@@ -31,12 +32,11 @@ void setup() {
   storageInit();
   restoreLastColor();
 
-  connectToWiFi();
+  startAccessPoint();
   webServerInit();
 }
 
 void loop() {
-  maintainWiFiConnection();
   webServerLoop();
   ledEffectsLoop();
   maintainColorPersistence();
