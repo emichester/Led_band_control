@@ -79,3 +79,85 @@ secrets.h
 
 # Drawing files
 drawings/**/*backups/
+
+# =========================
+# Android Studio / IntelliJ
+# =========================
+
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Local configuration
+local.properties
+
+# =========================
+# Gradle
+# =========================
+
+.gradle/
+build/
+**/build/
+
+# Gradle generated files
+captures/
+
+# =========================
+# Android
+# =========================
+
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# Generated Android files
+bin/
+gen/
+
+# =========================
+# Kotlin
+# =========================
+
+*.class
+.kotlin/
+
+# =========================
+# Signing / Keystores
+# =========================
+
+*.jks
+*.keystore
+
+# =========================
+# OS generated files
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+
+*.log
+
+# =========================
+# Firebase / Google
+# =========================
+
+# Ignore Firebase config if it contains project-specific credentials
+# Uncomment if you don't want it in Git:
+# google-services.json
+
+# =========================
+# Temporary / generated
+# =========================
+
+*.hprof
+.navigation/
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries/
